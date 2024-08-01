@@ -28,7 +28,7 @@ func Shorting() string {
 	return string(b)
 }
 
-func handlePost(w http.ResponseWriter, r *http.Request) {
+func HandlePost(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Unable to read request body", http.StatusBadRequest)
@@ -49,7 +49,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleGet(w http.ResponseWriter, r *http.Request) {
+func HandleGet(w http.ResponseWriter, r *http.Request) {
 	shortUrl := r.URL.Path
 
 	if value, exists := UrlData.Get("http://localhost:8080" + shortUrl); exists {
@@ -58,16 +58,5 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Location: " + value))
 	} else {
 		http.Error(w, "Short URL not found", http.StatusNotFound)
-	}
-}
-
-func Webhook(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		handlePost(w, r)
-	case http.MethodGet:
-		handleGet(w, r)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
