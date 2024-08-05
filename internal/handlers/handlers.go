@@ -1,8 +1,8 @@
 package handlers
 
 import (
+	"YandexLearnMiddle/cmd/config"
 	"YandexLearnMiddle/internal/maps"
-	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -41,7 +41,6 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 		shortUrl := Shorting()
 		fullShortUrl := "http://localhost:8080/" + shortUrl
 		UrlData.Add(fullShortUrl, urlStr)
-		fmt.Println(UrlData)
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusCreated)
@@ -52,14 +51,18 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HandleGet(w http.ResponseWriter, r *http.Request) {
-	shortUrl := r.URL.Path
+func HandleGet(cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		shortUrl := r.URL.Path
 
-	if value, exists := UrlData.Get("http://localhost:8080" + shortUrl); exists {
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusTemporaryRedirect)
-		_, _ = w.Write([]byte("Location: " + value))
-	} else {
-		http.Error(w, "Short URL not found", http.StatusNotFound)
+		fullUrl := cfg.BaseURL + shortUrl
+
+		if value, exists := UrlData.Get(fullUrl); exists {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			_, _ = w.Write([]byte("Location: " + value))
+		} else {
+			http.Error(w, "Short URL not found", http.StatusNotFound)
+		}
 	}
 }

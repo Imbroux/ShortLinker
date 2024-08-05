@@ -1,24 +1,33 @@
 package main
 
 import (
+	"YandexLearnMiddle/cmd/config"
 	"YandexLearnMiddle/internal/handlers"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"log"
 	"net/http"
 )
 
 func main() {
-	if err := run(); err != nil {
-		panic(err)
+	cfg, err := config.NewConfig()
+	if err != nil {
+		log.Fatalf("Ошибка при инициализации конфигурации: %v", err)
+	}
+
+	if err := run(cfg); err != nil {
+		log.Fatalf("Ошибка при запуске сервера: %v", err)
 	}
 }
 
-func run() error {
+func run(cfg *config.Config) error {
+	fmt.Println("Запуск сервера на", cfg.Addr)
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
 	r.Post("/", handlers.HandlePost)
-	r.Get("/*", handlers.HandleGet)
+	r.Get("/*", handlers.HandleGet(cfg))
 
-	return http.ListenAndServe(`:8080`, r)
+	return http.ListenAndServe(cfg.Addr, r)
 }
