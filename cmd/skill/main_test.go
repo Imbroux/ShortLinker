@@ -1,6 +1,9 @@
 package main
 
 import (
+	"YandexLearnMiddle/internal/handlers"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -9,8 +12,13 @@ import (
 )
 
 func Test_webhook(t *testing.T) {
-	handler := http.HandlerFunc(webhook)
-	srv := httptest.NewServer(handler)
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+
+	r.Post("/", handlers.HandlePost)
+	r.Get("/*", handlers.HandleGet)
+
+	srv := httptest.NewServer(r)
 	defer srv.Close()
 
 	tests := []struct {

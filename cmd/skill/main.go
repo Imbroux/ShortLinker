@@ -2,19 +2,11 @@ package main
 
 import (
 	"YandexLearnMiddle/internal/handlers"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"net/http"
 )
 
-func webhook(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		handlers.HandlePost(w, r)
-	case http.MethodGet:
-		handlers.HandleGet(w, r)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
 func main() {
 	if err := run(); err != nil {
 		panic(err)
@@ -22,5 +14,11 @@ func main() {
 }
 
 func run() error {
-	return http.ListenAndServe(`:8080`, http.HandlerFunc(webhook))
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+
+	r.Post("/", handlers.HandlePost)
+	r.Get("/*", handlers.HandleGet)
+
+	return http.ListenAndServe(`:8080`, r)
 }

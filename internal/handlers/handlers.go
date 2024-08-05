@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"YandexLearnMiddle/internal/maps"
+	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -37,12 +38,14 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 	urlStr := string(body)
 
 	if IsValidUrl(urlStr) {
-		shortUrl := "http://localhost:8080/" + Shorting()
-		UrlData.Add(shortUrl, urlStr)
+		shortUrl := Shorting()
+		fullShortUrl := "http://localhost:8080/" + shortUrl
+		UrlData.Add(fullShortUrl, urlStr)
+		fmt.Println(UrlData)
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(shortUrl))
+		_, _ = w.Write([]byte(fullShortUrl))
 	} else {
 		http.Error(w, "Invalid URL", http.StatusBadGateway)
 		return
