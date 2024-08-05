@@ -1,14 +1,17 @@
 package main
 
 import (
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
 func Test_webhook(t *testing.T) {
+	handler := http.HandlerFunc(webhook)
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
 
 	tests := []struct {
 		method       string
@@ -20,7 +23,7 @@ func Test_webhook(t *testing.T) {
 	}{
 		{
 			method:       http.MethodPost,
-			url:          "/",
+			url:          srv.URL + "/",
 			headers:      map[string]string{"Content-Type": "text/plain"},
 			body:         "https://practicum.yandex.ru/",
 			expectedCode: http.StatusCreated,
@@ -28,29 +31,31 @@ func Test_webhook(t *testing.T) {
 		},
 		{
 			method:       http.MethodGet,
-			url:          "http://localhost:8080",
+			url:          srv.URL + "/nonexistent",
 			headers:      nil,
 			body:         "",
 			expectedCode: http.StatusNotFound,
 			expectedBody: "",
 		},
 	}
+
+	client := resty.New()
+
 	for _, tc := range tests {
 		t.Run(tc.method, func(t *testing.T) {
-			bodyReader := strings.NewReader(tc.body)
-			r := httptest.NewRequest(tc.method, tc.url, bodyReader)
-			for key, value := range tc.headers {
-				r.Header.Set(key, value)
-			}
-			w := httptest.NewRecorder()
+			req := client.R().
+				SetHeaders(tc.headers).
+				SetBody(tc.body)
 
-			webhook(w, r)
+			resp, err := req.Execute(tc.method, tc.url)
 
-			assert.Equal(t, tc.expectedCode, w.Code, "Код ответа не совпадает с ожидаемым")
+			assert.NoError(t, err, "Unexpected error during request")
+
+			assert.Equal(t, tc.expectedCode, resp.StatusCode(), "Response code does not match expected")
+
 			if tc.expectedBody != "" {
-				assert.JSONEq(t, tc.expectedBody, w.Body.String(), "Тело ответа не совпадает с ожидаемым")
+				assert.JSONEq(t, tc.expectedBody, resp.String(), "Response body does not match expected")
 			}
-
 		})
 	}
 }
