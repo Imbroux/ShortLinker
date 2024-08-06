@@ -3,9 +3,8 @@ package main
 import (
 	"YandexLearnMiddle/cmd/config"
 	"YandexLearnMiddle/internal/handlers"
-	"fmt"
+	"YandexLearnMiddle/internal/logger"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"log"
 	"net/http"
 )
@@ -16,18 +15,28 @@ func main() {
 		log.Fatalf("Ошибка при инициализации конфигурации: %v", err)
 	}
 
+	// Инициализация логгера
+	sugar, err := logger.InitLogger()
+	if err != nil {
+		log.Fatalf("Ошибка при инициализации логгера: %v", err)
+	}
+	defer sugar.Sync()
+
+	// Присвоить глобальную переменную `sugar` для использования в middleware
+	logger.Sugar = sugar
+
 	if err := run(cfg); err != nil {
 		log.Fatalf("Ошибка при запуске сервера: %v", err)
 	}
 }
 
 func run(cfg *config.Config) error {
-	fmt.Println("Запуск сервера на", cfg.Addr)
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+	r.Use(logger.WithLogging)
 
 	r.Post("/", handlers.HandlePost)
-	r.Get("/*", handlers.HandleGet(cfg))
+	r.Get("/*", handlers.HandleGet())
 
+	log.Printf("Запуск сервера на %s", cfg.Addr)
 	return http.ListenAndServe(cfg.Addr, r)
 }

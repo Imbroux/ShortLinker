@@ -6,16 +6,21 @@ import (
 )
 
 type Config struct {
-	Addr    string
-	BaseURL string
+	Addr         string
+	BaseURL      string
+	FlagLogLevel string
 }
 
 func NewConfig() (*Config, error) {
-	var addr string
-	var baseURL string
+	var (
+		addr         string
+		baseURL      string
+		flagLogLevel string
+	)
 
 	flag.StringVar(&addr, "a", ":8888", "Адрес запуска HTTP-сервера")
 	flag.StringVar(&baseURL, "b", "8000", "Базовый адрес результирующего сокращённого URL")
+	flag.StringVar(&flagLogLevel, "l", "info", "log level")
 
 	flag.Parse()
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
@@ -25,8 +30,13 @@ func NewConfig() (*Config, error) {
 	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" {
 		baseURL = envBaseURL
 	}
+	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
+		flagLogLevel = envLogLevel
+	}
+
 	return &Config{
-		Addr:    addr,
-		BaseURL: baseURL,
+		Addr:         addr,
+		BaseURL:      baseURL,
+		FlagLogLevel: flagLogLevel,
 	}, nil
 }

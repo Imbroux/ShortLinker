@@ -1,6 +1,7 @@
 package main
 
 import (
+	"YandexLearnMiddle/cmd/config"
 	"YandexLearnMiddle/internal/handlers"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -14,9 +15,9 @@ import (
 func Test_webhook(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-
+	cfg, _ := config.NewConfig()
 	r.Post("/", handlers.HandlePost)
-	r.Get("/*", handlers.HandleGet)
+	r.Get("/*", handlers.HandleGet(cfg))
 
 	srv := httptest.NewServer(r)
 	defer srv.Close()
