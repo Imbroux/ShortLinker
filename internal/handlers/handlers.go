@@ -2,22 +2,19 @@ package handlers
 
 import (
 	"YandexLearnMiddle/internal/maps"
+	"encoding/json"
 	"io"
 	"math/rand"
 	"net/http"
-	"net/url"
+	"strings"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 var UrlData = maps.New()
 
-func IsValidUrl(token string) bool {
-	u, err := url.Parse(token)
-	if err != nil {
-		return false
-	}
-	return u.Scheme != "" && u.Host != ""
+func IsValidUrl(urlStr string) bool {
+	return strings.HasPrefix(urlStr, "http://") || strings.HasPrefix(urlStr, "https://")
 }
 
 func Shorting() string {
@@ -27,27 +24,36 @@ func Shorting() string {
 	}
 	return string(b)
 }
-
 func HandlePost(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		URL string `json:"url"`
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Unable to read request body", http.StatusBadRequest)
 		return
 	}
-	urlStr := string(body)
+	defer r.Body.Close()
 
-	if IsValidUrl(urlStr) {
-		shortUrl := Shorting()
-		fullShortUrl := "/" + shortUrl
-		UrlData.Add(fullShortUrl, urlStr)
-
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte("http://localhost:8888" + fullShortUrl))
-	} else {
+	err = json.Unmarshal(body, &req)
+	if err != nil || !IsValidUrl(req.URL) {
 		http.Error(w, "Invalid URL", http.StatusBadRequest)
 		return
 	}
+
+	shortUrl := Shorting()
+	fullShortUrl := "/" + shortUrl
+	UrlData.Add(fullShortUrl, req.URL)
+	res := struct {
+		Result string `json:"result"`
+	}{
+		Result: "http://localhost:8080" + fullShortUrl,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(res)
 }
 
 func HandleGet() http.HandlerFunc {
