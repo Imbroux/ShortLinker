@@ -13,16 +13,21 @@ type Config struct {
 
 func NewConfig() (*Config, error) {
 	var (
-		addr         string
-		baseURL      string
-		flagLogLevel string
+		addr            string
+		baseURL         string
+		flagLogLevel    string
+		fileStoragePath string
 	)
-
+	flag.StringVar(&fileStoragePath, "f", "/tmp/short-url-db.json", "File path to store URL data")
 	flag.StringVar(&addr, "a", ":8888", "Адрес запуска HTTP-сервера")
 	flag.StringVar(&baseURL, "b", "8000", "Базовый адрес результирующего сокращённого URL")
 	flag.StringVar(&flagLogLevel, "l", "info", "log level")
 
 	flag.Parse()
+	envFileStoragePath := os.Getenv("FILE_STORAGE_PATH")
+	if envFileStoragePath != "" {
+		fileStoragePath = envFileStoragePath
+	}
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
 		addr = envRunAddr
 	}

@@ -15,7 +15,6 @@ func main() {
 		log.Fatalf("Ошибка при инициализации конфигурации: %v", err)
 	}
 
-	// Инициализация логгера
 	sugar, err := logger.InitLogger()
 	if err != nil {
 		log.Fatalf("Ошибка при инициализации логгера: %v", err)

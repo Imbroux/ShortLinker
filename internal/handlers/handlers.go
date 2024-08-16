@@ -3,15 +3,56 @@ package handlers
 import (
 	"YandexLearnMiddle/internal/maps"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-var UrlData = maps.New()
+type URLData struct {
+	UUID        string `json:"uuid"`
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
+var (
+	filePath = "urls.json"
+	UrlData  = maps.New()
+)
+
+func generateUUID() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano()) // Простой UUID на основе времени
+}
+func saveToFile(data URLData) error {
+	var existingData []URLData
+
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&existingData); err != nil && err.Error() != "EOF" {
+		return err
+	}
+
+	existingData = append(existingData, data)
+	file.Seek(0, 0)
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(existingData); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func IsValidUrl(urlStr string) bool {
 	return strings.HasPrefix(urlStr, "http://") || strings.HasPrefix(urlStr, "https://")
@@ -44,7 +85,18 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 
 	shortUrl := Shorting()
 	fullShortUrl := "/" + shortUrl
-	UrlData.Add(fullShortUrl, req.URL)
+
+	urlData := URLData{
+		UUID:        generateUUID(),
+		ShortURL:    fullShortUrl,
+		OriginalURL: req.URL,
+	}
+
+	if err := saveToFile(urlData); err != nil {
+		http.Error(w, "Unable to save data", http.StatusInternalServerError)
+		return
+	}
+
 	res := struct {
 		Result string `json:"result"`
 	}{
@@ -55,7 +107,6 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(res)
 }
-
 func HandleGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortUrl := r.URL.Path
