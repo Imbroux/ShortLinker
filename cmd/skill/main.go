@@ -22,7 +22,6 @@ func main() {
 	}
 	defer sugar.Sync()
 
-	// Присвоить глобальную переменную `sugar` для использования в middleware
 	logger.Sugar = sugar
 
 	if err := run(cfg); err != nil {
@@ -34,9 +33,9 @@ func run(cfg *config.Config) error {
 	r := chi.NewRouter()
 	r.Use(logger.WithLogging)
 
-	r.Post("/", handlers.HandlePost)
+	r.Post("/api/shorten", handlers.HandlePost)
 	r.Get("/*", handlers.HandleGet())
 
 	log.Printf("Запуск сервера на %s", cfg.Addr)
-	return http.ListenAndServe(cfg.Addr, r)
+	return http.ListenAndServe(cfg.Addr, config.GzipMiddleware(r))
 }
