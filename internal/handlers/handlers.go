@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"YandexLearnMiddle/database"
 	"YandexLearnMiddle/internal/maps"
 	"encoding/json"
 	"fmt"
@@ -123,5 +124,14 @@ func HandleGet() http.HandlerFunc {
 		} else {
 			http.Error(w, "Short URL not found", http.StatusNotFound)
 		}
+	}
+}
+func GetPing() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := database.DB.Ping(); err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
