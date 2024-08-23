@@ -1,4 +1,4 @@
-package database
+package db
 
 import (
 	"database/sql"
@@ -12,7 +12,7 @@ func InitDB(dataSourceName string) {
 	var err error
 	DB, err = sql.Open("pgx", dataSourceName)
 	if err != nil {
-		log.Fatalf("Error connecting to database: %v", err)
+		log.Fatalf("Error connecting to db: %v", err)
 	}
 
 	log.Println("Database connection established.")

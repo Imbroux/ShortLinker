@@ -1,58 +1,21 @@
 package handlers
 
 import (
-	"YandexLearnMiddle/database"
-	"YandexLearnMiddle/internal/maps"
+	"YandexLearnMiddle/internal/db"
 	"encoding/json"
-	"fmt"
+	"github.com/go-chi/chi/v5"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"strings"
-	"time"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 type URLData struct {
-	UUID        string `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
-}
-
-var (
-	filePath = "urls.json"
-	UrlData  = maps.New()
-)
-
-func generateUUID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano()) // Простой UUID на основе времени
-}
-func saveToFile(data URLData) error {
-	var existingData []URLData
-
-	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0666)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&existingData); err != nil && err.Error() != "EOF" {
-		return err
-	}
-
-	existingData = append(existingData, data)
-	file.Seek(0, 0)
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(existingData); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func IsValidUrl(urlStr string) bool {
@@ -66,6 +29,18 @@ func Shorting() string {
 	}
 	return string(b)
 }
+
+func saveToDatabase(data URLData) error {
+	query := `
+  INSERT INTO users (full_url, short_url) VALUES ($1, $2);
+ `
+	_, err := db.DB.Exec(query, data.OriginalURL, data.ShortURL)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func HandlePost(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		URL string `json:"url"`
@@ -83,17 +58,14 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid URL", http.StatusBadRequest)
 		return
 	}
-
 	shortUrl := Shorting()
-	fullShortUrl := "/" + shortUrl
 
 	urlData := URLData{
-		UUID:        generateUUID(),
-		ShortURL:    fullShortUrl,
+		ShortURL:    shortUrl,
 		OriginalURL: req.URL,
 	}
 
-	if err := saveToFile(urlData); err != nil {
+	if err := saveToDatabase(urlData); err != nil {
 		http.Error(w, "Unable to save data", http.StatusInternalServerError)
 		return
 	}
@@ -101,34 +73,45 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 	res := struct {
 		Result string `json:"result"`
 	}{
-		Result: "http://localhost:8080" + fullShortUrl,
+		Result: "http://localhost:8080/" + shortUrl,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(res)
 }
+
 func HandleGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		shortUrl := r.URL.Path
-		if shortUrl == "/" {
+		shortUrl := chi.URLParam(r, "shortURL")
+
+		if shortUrl == "" {
+			log.Println("Short URL is empty")
 			http.Error(w, "Short URL not found", http.StatusNotFound)
 			return
 		}
 
-		if value, exists := UrlData.Get(shortUrl); exists {
-			w.Header().Set("Location", value)
-			_, _ = w.Write([]byte(value))
-
-			w.WriteHeader(http.StatusTemporaryRedirect)
-		} else {
+		query := `
+   SELECT full_url FROM users WHERE short_url = $1;
+  `
+		var fullUrl string
+		row := db.DB.QueryRow(query, shortUrl)
+		err := row.Scan(&fullUrl)
+		if err != nil {
+			log.Println("Error querying database:", err)
 			http.Error(w, "Short URL not found", http.StatusNotFound)
+			return
 		}
+
+		w.Header().Set("Location", fullUrl)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+		w.Write([]byte(fullUrl))
 	}
 }
+
 func GetPing() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := database.DB.Ping(); err != nil {
+		if err := db.DB.Ping(); err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
