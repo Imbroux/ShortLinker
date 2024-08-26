@@ -16,7 +16,7 @@ func main() {
 	dataSourceName := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 		`localhost`, `postgres`, `625325`, `shortlinks`)
 	db.InitDB(dataSourceName)
-	err := services.CreateUserTable()
+	err := services.CreateUrlsTable()
 
 	if err != nil {
 		log.Fatal(err)

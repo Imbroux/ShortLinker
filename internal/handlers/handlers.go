@@ -41,15 +41,20 @@ func Shorting() string {
 	return string(b)
 }
 
-func saveToDatabase(data URLData) error {
+func saveToDatabase(data URLData) (string, error) {
+	var existingShortURL string
 	query := `
-  INSERT INTO users (full_url, short_url) VALUES ($1, $2);
- `
-	_, err := db.DB.Exec(query, data.OriginalURL, data.ShortURL)
+        INSERT INTO urls (full_url, short_url)
+        VALUES ($1, $2)
+        ON CONFLICT (full_url) DO UPDATE
+        SET short_url = EXCLUDED.short_url
+        RETURNING short_url;
+    `
+	err := db.DB.QueryRow(query, data.OriginalURL, data.ShortURL).Scan(&existingShortURL)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return existingShortURL, nil
 }
 
 func HandlePost(w http.ResponseWriter, r *http.Request) {
@@ -69,6 +74,7 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid URL", http.StatusBadRequest)
 		return
 	}
+
 	shortUrl := Shorting()
 
 	urlData := URLData{
@@ -76,7 +82,14 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 		OriginalURL: req.URL,
 	}
 
-	if err := saveToDatabase(urlData); err != nil {
+	existingShortURL, err := saveToDatabase(urlData)
+	if err != nil {
+		if strings.Contains(err.Error(), "unique violation") {
+			w.WriteHeader(http.StatusConflict)
+			existingShortURL = "http://localhost:8080/" + existingShortURL
+			json.NewEncoder(w).Encode(map[string]string{"short_url": existingShortURL})
+			return
+		}
 		http.Error(w, "Unable to save data", http.StatusInternalServerError)
 		return
 	}
@@ -147,11 +160,16 @@ func HandleBatchPost(w http.ResponseWriter, r *http.Request) {
 			OriginalURL: item.OriginalURL,
 		}
 
-		query := `
-		INSERT INTO users (full_url, short_url) VALUES ($1, $2);
-		`
-		_, err = tx.Exec(query, urlData.OriginalURL, urlData.ShortURL)
+		existingShortURL, err := saveToDatabase(urlData)
 		if err != nil {
+			if strings.Contains(err.Error(), "unique violation") {
+				existingShortURL = "http://localhost:8080/" + existingShortURL
+				response = append(response, URLBatchResponse{
+					CorrelationID: item.CorrelationID,
+					ShortURL:      existingShortURL,
+				})
+				continue
+			}
 			http.Error(w, "Unable to save data", http.StatusInternalServerError)
 			return
 		}
