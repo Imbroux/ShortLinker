@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"YandexLearnMiddle/internal/db"
+	"compress/gzip"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"io"
@@ -16,6 +17,16 @@ const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 type URLData struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+}
+
+type URLBatchRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type URLBatchResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
 }
 
 func IsValidUrl(urlStr string) bool {
@@ -79,6 +90,83 @@ func HandlePost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(res)
+}
+
+func HandleBatchPost(w http.ResponseWriter, r *http.Request) {
+	var batch []URLBatchRequest
+
+	if r.Header.Get("Content-Encoding") == "gzip" {
+		reader, err := gzip.NewReader(r.Body)
+		if err != nil {
+			http.Error(w, "Unable to read gzip body", http.StatusBadRequest)
+			return
+		}
+		defer reader.Close()
+		err = json.NewDecoder(reader).Decode(&batch)
+		if err != nil {
+			http.Error(w, "Invalid batch data", http.StatusBadRequest)
+			return
+		}
+	} else {
+		err := json.NewDecoder(r.Body).Decode(&batch)
+		if err != nil {
+			http.Error(w, "Invalid batch data", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if len(batch) == 0 {
+		http.Error(w, "Batch is empty", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := db.DB.Begin()
+	if err != nil {
+		http.Error(w, "Unable to start transaction", http.StatusInternalServerError)
+		return
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	var response []URLBatchResponse
+	for _, item := range batch {
+		if !IsValidUrl(item.OriginalURL) {
+			http.Error(w, "Invalid URL in batch", http.StatusBadRequest)
+			return
+		}
+
+		shortUrl := Shorting()
+
+		urlData := URLData{
+			ShortURL:    shortUrl,
+			OriginalURL: item.OriginalURL,
+		}
+
+		query := `
+		INSERT INTO users (full_url, short_url) VALUES ($1, $2);
+		`
+		_, err = tx.Exec(query, urlData.OriginalURL, urlData.ShortURL)
+		if err != nil {
+			http.Error(w, "Unable to save data", http.StatusInternalServerError)
+			return
+		}
+
+		response = append(response, URLBatchResponse{
+			CorrelationID: item.CorrelationID,
+			ShortURL:      "http://localhost:8080/" + shortUrl,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Println("Error encoding response:", err)
+	}
 }
 
 func HandleGet() http.HandlerFunc {

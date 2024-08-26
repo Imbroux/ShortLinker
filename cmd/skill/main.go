@@ -45,6 +45,7 @@ func run(cfg *config.Config) error {
 	r.Use(logger.WithLogging)
 
 	r.Post("/api/shorten", handlers.HandlePost)
+	r.Post("/api/shorten/batch", handlers.HandleBatchPost)
 	r.Get("/{shortURL}", handlers.HandleGet())
 	r.Get("/ping", handlers.GetPing())
 	log.Printf("Запуск сервера на %s", cfg.Addr)

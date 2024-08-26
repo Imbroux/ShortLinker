@@ -2,6 +2,7 @@ package logger
 
 import (
 	"go.uber.org/zap"
+	"log"
 	"net/http"
 	"time"
 )
@@ -44,8 +45,12 @@ type responseWriter struct {
 }
 
 func (rw *responseWriter) WriteHeader(statusCode int) {
-	rw.statusCode = statusCode
-	rw.ResponseWriter.WriteHeader(statusCode)
+	if rw.statusCode == 0 { // Проверка, был ли уже установлен статус
+		rw.statusCode = statusCode
+		rw.ResponseWriter.WriteHeader(statusCode)
+	} else {
+		log.Printf("http: superfluous response.WriteHeader call")
+	}
 }
 
 func (rw *responseWriter) Write(b []byte) (int, error) {
