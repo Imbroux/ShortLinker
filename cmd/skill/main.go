@@ -1,53 +1,51 @@
 package main
 
 import (
-	"YandexLearnMiddle/cmd/config"
-	"YandexLearnMiddle/internal/db"
-	"YandexLearnMiddle/internal/handlers"
-	"YandexLearnMiddle/internal/logger"
-	"YandexLearnMiddle/internal/services"
+	"YandexLearnMiddle/internal/handler"
+	"YandexLearnMiddle/postgresql"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"log"
+	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 	"net/http"
+	"os"
 )
 
 func main() {
-	dataSourceName := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		`localhost`, `postgres`, `625325`, `shortlinks`)
-	db.InitDB(dataSourceName)
-	err := services.CreateUrlsTable()
+	err := godotenv.Load()
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
 
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal("Error loading .env file: ", zap.Error(err))
 	}
 
-	cfg, err := config.NewConfig()
-	if err != nil {
-		log.Fatalf("Ошибка при инициализации конфигурации: %v", err)
+	// Проверка переменных окружения
+	requiredEnvVars := []string{"DB_USER", "DB_PASSWORD", "DB_HOST", "DB_PORT", "DB_NAME", "SIGNING_KEY"}
+	for _, envVar := range requiredEnvVars {
+		if os.Getenv(envVar) == "" {
+			logger.Fatal(fmt.Sprintf("Environment variable %s is required", envVar))
+		}
 	}
 
-	sugar, err := logger.InitLogger()
-	if err != nil {
-		log.Fatalf("Ошибка при инициализации логгера: %v", err)
-	}
-	defer sugar.Sync()
+	dataSourceName := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+	)
+	postgresql.InitDB(dataSourceName, logger)
 
-	logger.Sugar = sugar
-
-	if err := run(cfg); err != nil {
-		log.Fatalf("Ошибка при запуске сервера: %v", err)
-	}
+	handler.Logger = logger // Передаём logger в handler
+	run(logger)             // Передаем logger в run
 }
 
-func run(cfg *config.Config) error {
-	r := chi.NewRouter()
-	r.Use(logger.WithLogging)
+func run(log *zap.Logger) {
+	r := handler.InitRouters()
 
-	r.Post("/api/shorten", handlers.HandlePost)
-	r.Post("/api/shorten/batch", handlers.HandleBatchPost)
-	r.Get("/{shortURL}", handlers.HandleGet())
-	r.Get("/ping", handlers.GetPing())
-	log.Printf("Запуск сервера на %s", cfg.Addr)
-	return http.ListenAndServe(cfg.Addr, config.GzipMiddleware(r))
+	log.Info("Starting server on :8080")
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		log.Fatal("Error starting server", zap.Error(err))
+	}
 }
