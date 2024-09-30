@@ -15,6 +15,7 @@ type LinkHandler interface {
 	ShortenLink(w http.ResponseWriter, r *http.Request)
 	GetOriginalLink(w http.ResponseWriter, r *http.Request)
 	GetAllLinks(w http.ResponseWriter, r *http.Request)
+	DeleteLinks(w http.ResponseWriter, r *http.Request)
 }
 
 type linkHandler struct {
@@ -112,6 +113,34 @@ func (h *linkHandler) GetAllLinks(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(links)
+}
+
+func (h *linkHandler) DeleteLinks(w http.ResponseWriter, r *http.Request) {
+	username, ok := r.Context().Value("username").(string)
+	if !ok || username == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var shortLinks []string
+	if err := json.NewDecoder(r.Body).Decode(&shortLinks); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := getUserIDByUsername(username)
+	if err != nil {
+		http.Error(w, "Failed to get user ID", http.StatusInternalServerError)
+		return
+	}
+
+	go func() {
+		if err := h.linkService.MarkLinksAsDeleted(shortLinks, userID); err != nil {
+			log.Printf("Failed to delete links: %v", err)
+		}
+	}()
+
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func getUserIDByUsername(username string) (int, error) {

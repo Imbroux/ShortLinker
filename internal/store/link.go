@@ -1,7 +1,9 @@
 package store
 
 type Link struct {
-	Original  string `json:"original"`
-	Shortened string `json:"shortened"`
-	UserID    int    `json:"user_id"`
+	ID          int    `db:"id"`
+	Original    string `db:"original"`
+	Shortened   string `db:"shortened"`
+	UserID      int    `db:"user_id"`
+	DeletedFlag bool   `db:"is_deleted"`
 }

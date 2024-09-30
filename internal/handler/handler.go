@@ -20,6 +20,7 @@ func InitRouters() http.Handler {
 	protected.HandleFunc("/shorten", linkHandler.ShortenLink).Methods("POST")
 	protected.HandleFunc("/original", linkHandler.GetOriginalLink).Methods("GET")
 	protected.HandleFunc("/links", linkHandler.GetAllLinks).Methods("GET")
+	protected.HandleFunc("/user/urls", linkHandler.DeleteLinks).Methods("DELETE")
 
 	return r
 }
