@@ -8,6 +8,7 @@ import (
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 )
 
@@ -36,6 +37,14 @@ func main() {
 		os.Getenv("DB_NAME"),
 	)
 	postgresql.InitDB(dataSourceName, logger)
+
+	go func() {
+		logger.Info("Starting pprof server on :6060")
+		logErr := http.ListenAndServe("localhost:6060", nil) // Запуск pprof на отдельном порту
+		if logErr != nil {
+			logger.Fatal("Error starting pprof server", zap.Error(logErr))
+		}
+	}()
 
 	handler.Logger = logger // Передаём logger в handler
 	run(logger)             // Передаем logger в run
