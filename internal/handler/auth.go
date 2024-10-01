@@ -12,6 +12,10 @@ import (
 
 var Logger *zap.Logger
 
+// SignUp обрабатывает запрос на регистрацию пользователя.
+// Принимает JSON с полями username и password, проверяет их корректность,
+// хеширует пароль и сохраняет пользователя в базе данных.
+// Возвращает соответствующий статус и сообщение.
 func SignUp(w http.ResponseWriter, r *http.Request) {
 	var user store.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -53,6 +57,10 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("User registered successfully"))
 }
 
+// SignIn обрабатывает запрос на вход пользователя.
+// Принимает JSON с полями username и password, проверяет их корректность,
+// сравнивает пароль с хешем в базе данных и возвращает JWT токен для авторизации.
+// Возвращает соответствующий статус и сообщение.
 func SignIn(w http.ResponseWriter, r *http.Request) {
 	var user store.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {

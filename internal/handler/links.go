@@ -11,21 +11,25 @@ import (
 	"net/http"
 )
 
+// LinkHandler определяет интерфейс для работы с сокращёнными ссылками.
 type LinkHandler interface {
-	ShortenLink(w http.ResponseWriter, r *http.Request)
-	GetOriginalLink(w http.ResponseWriter, r *http.Request)
-	GetAllLinks(w http.ResponseWriter, r *http.Request)
-	DeleteLinks(w http.ResponseWriter, r *http.Request)
+	ShortenLink(w http.ResponseWriter, r *http.Request)     // Сокращает ссылку
+	GetOriginalLink(w http.ResponseWriter, r *http.Request) // Возвращает оригинальную ссылку по сокращённой
+	GetAllLinks(w http.ResponseWriter, r *http.Request)     // Возвращает все ссылки пользователя
+	DeleteLinks(w http.ResponseWriter, r *http.Request)     // Удаляет ссылки
 }
 
+// linkHandler реализует интерфейс LinkHandler с использованием LinkService.
 type linkHandler struct {
 	linkService service.LinkService
 }
 
+// NewLinkHandler создаёт новый обработчик ссылок с заданным сервисом.
 func NewLinkHandler(service service.LinkService) LinkHandler {
 	return &linkHandler{linkService: service}
 }
 
+// ShortenLink сокращает исходную ссылку для авторизованного пользователя и сохраняет её в базе данных.
 func (h *linkHandler) ShortenLink(w http.ResponseWriter, r *http.Request) {
 	username, ok := r.Context().Value("username").(string)
 	if !ok || username == "" {
@@ -60,6 +64,7 @@ func (h *linkHandler) ShortenLink(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(link)
 }
 
+// GetOriginalLink возвращает оригинальную ссылку по сокращённой для авторизованного пользователя.
 func (h *linkHandler) GetOriginalLink(w http.ResponseWriter, r *http.Request) {
 	username, ok := r.Context().Value("username").(string)
 	if !ok || username == "" {
@@ -91,6 +96,7 @@ func (h *linkHandler) GetOriginalLink(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// GetAllLinks возвращает все ссылки, созданные авторизованным пользователем.
 func (h *linkHandler) GetAllLinks(w http.ResponseWriter, r *http.Request) {
 	username, ok := r.Context().Value("username").(string)
 	if !ok || username == "" {
@@ -115,6 +121,7 @@ func (h *linkHandler) GetAllLinks(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(links)
 }
 
+// DeleteLinks удаляет указанные ссылки для авторизованного пользователя.
 func (h *linkHandler) DeleteLinks(w http.ResponseWriter, r *http.Request) {
 	username, ok := r.Context().Value("username").(string)
 	if !ok || username == "" {
@@ -143,6 +150,7 @@ func (h *linkHandler) DeleteLinks(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+// getUserIDByUsername возвращает ID пользователя по его имени.
 func getUserIDByUsername(username string) (int, error) {
 	var userID int
 	err := postgresql.DB.QueryRow("SELECT id FROM users WHERE username = $1", username).Scan(&userID)

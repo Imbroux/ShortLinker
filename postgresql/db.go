@@ -6,8 +6,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// DB - глобальная переменная для подключения к базе данных PostgresSQL.
 var DB *sql.DB
 
+// InitDB инициализирует подключение к базе данных PostgresSQL с использованием заданной строки подключения.
+// Принимает строку подключения и логгер для записи ошибок.
+// Возвращает указатель на объект sql.DB, который представляет соединение с базой данных.
 func InitDB(dataSourceName string, logger *zap.Logger) *sql.DB {
 	db, err := sql.Open("pgx", dataSourceName)
 	if err != nil {

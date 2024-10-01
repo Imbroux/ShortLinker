@@ -12,6 +12,7 @@ import (
 	"os"
 )
 
+// main инициализирует переменные окружения, настраивает логгер, подключается к базе данных и запускает сервер.
 func main() {
 	err := godotenv.Load()
 	logger, _ := zap.NewProduction()
@@ -21,7 +22,6 @@ func main() {
 		logger.Fatal("Error loading .env file: ", zap.Error(err))
 	}
 
-	// Проверка переменных окружения
 	requiredEnvVars := []string{"DB_USER", "DB_PASSWORD", "DB_HOST", "DB_PORT", "DB_NAME", "SIGNING_KEY"}
 	for _, envVar := range requiredEnvVars {
 		if os.Getenv(envVar) == "" {
@@ -40,21 +40,22 @@ func main() {
 
 	go func() {
 		logger.Info("Starting pprof server on :6060")
-		logErr := http.ListenAndServe("localhost:6060", nil) // Запуск pprof на отдельном порту
+		logErr := http.ListenAndServe("localhost:6060", nil)
 		if logErr != nil {
 			logger.Fatal("Error starting pprof server", zap.Error(logErr))
 		}
 	}()
 
-	handler.Logger = logger // Передаём logger в handler
-	run(logger)             // Передаем logger в run
+	handler.Logger = logger
+	run(logger)
 }
 
+// run запускает HTTP сервер на порту 8080.
 func run(log *zap.Logger) {
-	r := handler.InitRouters()
+	s := handler.NewServer()
 
 	log.Info("Starting server on :8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
+	if err := http.ListenAndServe(":8080", s.Router); err != nil {
 		log.Fatal("Error starting server", zap.Error(err))
 	}
 }
