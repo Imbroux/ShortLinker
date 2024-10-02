@@ -12,8 +12,17 @@ import (
 	"os"
 )
 
-// main инициализирует переменные окружения, настраивает логгер, подключается к базе данных и запускает сервер.
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
+
 	err := godotenv.Load()
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
@@ -50,7 +59,6 @@ func main() {
 	run(logger)
 }
 
-// run запускает HTTP сервер на порту 8080.
 func run(log *zap.Logger) {
 	s := handler.NewServer()
 

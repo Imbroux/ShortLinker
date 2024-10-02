@@ -14,6 +14,9 @@ import (
 // SIGNING_KEY - ключ для подписи JWT, загружается из переменной окружения
 var SIGNING_KEY = []byte(os.Getenv("SIGNING_KEY"))
 
+// ContextKey - тип для ключа контекста.
+type ContextKey string
+
 // Claims - структура для хранения информации о пользователе в JWT
 type Claims struct {
 	jwt.RegisteredClaims
@@ -49,7 +52,7 @@ func MiddlewareJWT(next http.Handler) http.Handler {
 		}
 
 		// Установка username в контекст запроса
-		ctx := context.WithValue(r.Context(), "username", username)
+		ctx := context.WithValue(r.Context(), ContextKey("username"), username)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
